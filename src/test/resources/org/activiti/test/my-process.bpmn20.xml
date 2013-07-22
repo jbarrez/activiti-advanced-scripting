@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<definitions id="definitions"
+  xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:activiti="http://activiti.org/bpmn"
+  targetNamespace="Examples">
+  
+  <process id="my-process" isExecutable="true">
+  
+    <startEvent id="theStart" />
+    <sequenceFlow id="flow1" sourceRef="theStart" targetRef="javascriptScript" />
+    
+    <scriptTask id="javascriptScript" scriptFormat="JavaScript" activiti:autoStoreVariables="false">
+        <script><![CDATA[
+        
+            println("Start of script");
+            
+            importPackage(org.activiti);
+            importPackage(org.activiti.engine.impl.cfg);
+            importPackage(org.activiti.engine.impl.context);
+            importPackage(org.activiti.engine.impl.persistence.deploy);
+            importPackage(org.activiti.engine.impl.bpmn.deployer);
+            importPackage(org.activiti.engine.impl.bpmn.parser);
+            
+            var config = Context.getProcessEngineConfiguration();
+            var bpmnParser = config.getBpmnParser();
+
+            // Create script
+            var script = "";
+            script = script + "importPackage(java.net);";
+            script = script + "importPackage(java.io);";
+            script = script + "var url = new URL('http://localhost:8182/echo');";
+            script = script + "var connection = url.openConnection();";
+            script = script + "connection.setRequestMethod('POST');";
+            script = script + "connection.setDoOutput(true);";
+            script = script + "var outputStream = new BufferedOutputStream(connection.getOutputStream());";
+            script = script + "outputStream.write(new java.lang.String(\"{'eventType':'task-complete'}\").bytes);";
+            script = script + "outputStream.flush();";
+            script = script + "connection.connect();";
+            script = script + "var respCode = connection.getResponseCode();";
+            script = script + "if (respCode != 200) ";
+            script = script + "println('Response code : ' + respCode);";
+            script = script + "outputStream.close();";
+            script = script + "connection.disconnect();";
+                
+            // Add bpmn parse listener 
+            var handler = new ExecuteScriptOnTaskCompleteBpmnParseHandler("JavaScript");
+            handler.setUserTaskCompleteScript(script);
+            bpmnParser.getBpmnParserHandlers().addHandler(handler);
+                
+            // reset the deployment cache such that the new listener gets picked up on a new redeploy
+            config.getProcessDefinitionCache().clear();
+         
+	        println("End of script");
+	        ]]>
+        </script>    
+    </scriptTask>
+    <sequenceFlow id="flow2" sourceRef="javascriptScript" targetRef="task1" />
+    
+    <userTask id="task1"/>
+    <sequenceFlow id="flow3" sourceRef="task1" targetRef="task2" />
+    
+    <userTask id="task2" />    
+    <sequenceFlow id="flow4" sourceRef="task2" targetRef="theEnd" />
+    
+    <endEvent id="theEnd" />
+    
+  </process>
+
+</definitions>
